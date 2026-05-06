@@ -107,6 +107,12 @@ class XGBWrapper(BaseEstimator, ClassifierMixin):
     def __init__(self):
         self.params = {}
         self.model = XGBClassifier(**self.params)
+        # Add required sklearn attributes
+        self._estimator_type = "classifier"
+
+    @property
+    def estimator_type(self):
+        return self._estimator_type
 
     def get_params(self, deep=True):
         """Get parameters for this estimator."""
@@ -197,12 +203,29 @@ class XGBWrapper(BaseEstimator, ClassifierMixin):
         return self.model.predict_proba(X)
 
     def __sklearn_tags__(self):
-        return {
-            "requires_positive_X": False,
-            "X_types": ["2darray"],
-            "requires_y": True,
-            "allow_nan": True,
-        }
+        # return {
+        #     "requires_positive_X": False,
+        #     "X_types": ["2darray"],
+        #     "requires_y": True,
+        #     "allow_nan": True,
+        # }
+        class Tags:
+            def __init__(self):
+                self.estimator_type = "classifier"
+                self.requires_positive_X = False
+                self.X_types = ["2darray"]
+                self.requires_y = True
+                self.allow_nan = True
+                self.poor_score = False
+                self.no_validation = False
+                self.multioutput_only = False
+                self.multioutput = False
+                self.multilabel_only = False
+                self.multilabel = False
+                self.binary_only = False
+                self.requires_fit = True
+        
+        return Tags()
 
 def train_calibrated_clf(train, targets):
     """

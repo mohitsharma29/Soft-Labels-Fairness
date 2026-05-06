@@ -41,14 +41,14 @@ def bayes_error_estimator(alphas, priors, C, A):
         err += (C[i] >= alphas[A[i]])*(1 - 2*C[i])
     return pi + err / A.shape[0]
 
-def threshold_estimator(priors, lam, group, constraint='dp'):
+def threshold_estimator(priors, lam, group, constraint='DP'):
     if group == 0:
         pi_a = priors['a_0']
         pi_y_a = priors['y_1_a_0']
     else:
         pi_a = priors['a_1']
         pi_y_a = priors['y_1_a_1']
-    if constraint == 'dp':
+    if constraint == 'DP':
         temp_threshold = 1/2 + ((2*group - 1)*lam)/(2*pi_a)
         if temp_threshold > 1-1e-5:
             return 1
@@ -56,7 +56,7 @@ def threshold_estimator(priors, lam, group, constraint='dp'):
             return 0
         else:
             return temp_threshold
-    elif constraint == 'eop':
+    elif constraint == 'EOP':
         temp_threshold = 1/(2 - ((2*group - 1)*lam)/(pi_y_a*pi_a)) # Because we have conditional estimates
         if temp_threshold > 1-1e-5:
             return 1
@@ -66,24 +66,24 @@ def threshold_estimator(priors, lam, group, constraint='dp'):
             return temp_threshold
 
 # Unit tests
-def test_monotonicity(priors, D, constraint='eop'):
-    if constraint == 'dp':
+def test_monotonicity(priors, D, constraint='EOP'):
+    if constraint == 'DP':
         lam_max = max(priors['a_0'], priors['a_1'])
-    elif constraint == 'eop':
+    elif constraint == 'EOP':
         lam_max = max(priors['y_1_a_0']*priors['a_0'], priors['y_1_a_1']*priors['a_1']) # Because we have conditional estimates
     lams = np.linspace(-1, 1, 50)
     errs = []
     unfs = []
     for lam in lams:
-        if constraint == 'dp':
-            alphas = [threshold_estimator(priors, lam, 0, constraint='dp'), threshold_estimator(priors, lam, 1, constraint='dp')]
+        if constraint == 'DP':
+            alphas = [threshold_estimator(priors, lam, 0, constraint='DP'), threshold_estimator(priors, lam, 1, constraint='DP')]
             err = bayes_error_estimator(alphas, priors, D['C'], D['A'])
             # print(alphas, err)
             # continue
             errs.append(err)
             unfs.append(positive_rate_estimator(alphas[1], priors['a_1'], D['C'][D['A'] == 1]) - positive_rate_estimator(alphas[0], priors['a_0'], D['C'][D['A'] == 0]))
-        elif constraint == 'eop':
-            alphas = [threshold_estimator(priors, lam, 0, constraint='eop'), threshold_estimator(priors, lam, 1, constraint='eop')]
+        elif constraint == 'EOP':
+            alphas = [threshold_estimator(priors, lam, 0, constraint='EOP'), threshold_estimator(priors, lam, 1, constraint='EOP')]
             err = bayes_error_estimator(alphas, priors, D['C'], D['A'])
             errs.append(err)
             unfs.append(true_positive_rate_estimator(alphas[1], priors['y_1_a_1'], D['C'][D['A'] == 1]) - true_positive_rate_estimator(alphas[0], priors['y_1_a_0'], D['C'][D['A'] == 0]))
@@ -110,7 +110,7 @@ def test_monotonicity(priors, D, constraint='eop'):
     return None
 
 # Some inspiration from https://github.com/XianliZeng/Bayes-Optimal-Fair-Classification/
-def return_tradeoff(D, priors, constraint='dp', delta=0.001, eps=0.00001, T=100):
+def return_tradeoff(D, priors, constraint='DP', delta=0.001, eps=0.00001, T=100):
     alpha_0 = threshold_estimator(priors, 0, 0, constraint)
     alpha_1 = threshold_estimator(priors, 0, 1, constraint)
     alphas = {
@@ -118,10 +118,10 @@ def return_tradeoff(D, priors, constraint='dp', delta=0.001, eps=0.00001, T=100)
         1: alpha_1
     }
     bayes_error = bayes_error_estimator(alphas, priors, D['C'], D['A'])
-    if constraint == 'dp':
+    if constraint == 'DP':
         bayes_unf = positive_rate_estimator(alpha_1, priors['a_1'], D['C'][np.where(D['A'] == 1)[0]]) - positive_rate_estimator(alpha_0, priors['a_0'], D['C'][np.where(D['A'] == 0)[0]])
         global_lam_max = max(priors['a_0'], priors['a_1'])
-    elif constraint == 'eop':
+    elif constraint == 'EOP':
         bayes_unf = true_positive_rate_estimator(alpha_1, priors['y_1_a_1'], D['C'][np.where(D['A'] == 1)[0]]) - true_positive_rate_estimator(alpha_0, priors['y_1_a_0'], D['C'][np.where(D['A'] == 0)[0]])
         global_lam_max = max(priors['y_1_a_0']*priors['a_0'], priors['y_1_a_1']*priors['a_1'])
     print(bayes_error, bayes_unf, global_lam_max)
@@ -147,9 +147,9 @@ def return_tradeoff(D, priors, constraint='dp', delta=0.001, eps=0.00001, T=100)
                     1: alpha_1
                 }
                 error = bayes_error_estimator(alphas, priors, D['C'], D['A'])
-                if constraint == 'dp':
+                if constraint == 'DP':
                     unf = positive_rate_estimator(alpha_1, priors['a_1'], D['C'][np.where(D['A'] == 1)[0]]) - positive_rate_estimator(alpha_0, priors['a_0'], D['C'][np.where(D['A'] == 0)[0]])
-                elif constraint == 'eop':
+                elif constraint == 'EOP':
                     unf = true_positive_rate_estimator(alpha_1, priors['y_1_a_1'], D['C'][np.where(D['A'] == 1)[0]]) - true_positive_rate_estimator(alpha_0, priors['y_1_a_0'], D['C'][np.where(D['A'] == 0)[0]])
                 print(f'lambda: {mid}, Alpha_0: {alpha_0}, Alpha_1: {alpha_1}, Error: {error}, Unfairness: {unf}, Lam Min: {lam_min}, Lam Max: {lam_max}')
                 points[counter] = [error, unf, mid]
@@ -182,9 +182,9 @@ def return_tradeoff(D, priors, constraint='dp', delta=0.001, eps=0.00001, T=100)
                     1: alpha_1
                 }
                 error = bayes_error_estimator(alphas, priors, D['C'], D['A'])
-                if constraint == 'dp':
+                if constraint == 'DP':
                     unf = positive_rate_estimator(alpha_1, priors['a_1'], D['C'][np.where(D['A'] == 1)[0]]) - positive_rate_estimator(alpha_0, priors['a_0'], D['C'][np.where(D['A'] == 0)[0]])
-                elif constraint == 'eop':
+                elif constraint == 'EOP':
                     unf = true_positive_rate_estimator(alpha_1, priors['y_1_a_1'], D['C'][np.where(D['A'] == 1)[0]]) - true_positive_rate_estimator(alpha_0, priors['y_1_a_0'], D['C'][np.where(D['A'] == 0)[0]])
                 print(f'lambda: {mid}, Alpha_0: {alpha_0}, Alpha_1: {alpha_1}, Error: {error}, Unfairness: {unf}, Lam Min: {lam_min}, Lam Max: {lam_max}')
                 points[counter] = [error, unf, mid]
@@ -207,7 +207,7 @@ def return_tradeoff(D, priors, constraint='dp', delta=0.001, eps=0.00001, T=100)
                     break
     return points, bayes_error, bayes_unf
 
-def plot_tradeoff(tradeoff, tradeoff_est, true_bayes, true_unf, predicted_points=None):
+def plot_tradeoff(tradeoff, tradeoff_est, true_bayes, true_unf, predicted_points=None, lims=None):
     x = []
     y = []
     colors = []
@@ -227,17 +227,17 @@ def plot_tradeoff(tradeoff, tradeoff_est, true_bayes, true_unf, predicted_points
     plt.axvline(x=true_bayes, color='black', linestyle='--')
     plt.axhline(y=true_unf, color='black', linestyle='--')
     plt.colorbar(label='Lambda')
-    x_est = []
-    y_est = []
-    colors_est = []
-    for key in tradeoff_est:
-        #if key != -1:
-        x_est.append(tradeoff_est[key][0])
-        y_est.append(tradeoff_est[key][1])
-        colors_est.append(tradeoff_est[key][2])
-    x_est = np.array(x_est)
-    y_est = np.array(y_est)
-    plt.scatter(x_est, y_est, c=colors_est, cmap='plasma', marker='x', label='Estimated Trade-off')
+    # x_est = []
+    # y_est = []
+    # colors_est = []
+    # for key in tradeoff_est:
+    #     #if key != -1:
+    #     x_est.append(tradeoff_est[key][0])
+    #     y_est.append(tradeoff_est[key][1])
+    #     colors_est.append(tradeoff_est[key][2])
+    # x_est = np.array(x_est)
+    # y_est = np.array(y_est)
+    # plt.scatter(x_est, y_est, c=colors_est, cmap='plasma', marker='x', label='Estimated Trade-off')
     # remove duplicates from x_est, y_est, colors_est
     # unique_indices = np.unique(x_est, return_index=True)[1]
     # u_x_est = x_est[unique_indices]
@@ -249,9 +249,33 @@ def plot_tradeoff(tradeoff, tradeoff_est, true_bayes, true_unf, predicted_points
     # plt.plot(X_est_, Y_est_, color='orange', linestyle='--', label='Estimated Trade-off (spline)')
     plt.colorbar(label='Lambda (Estimated)')
     if predicted_points is not None:
-        unfs, errs, eps = predicted_points['exp_grad']
-        unfs = np.array(unfs)
-        errs = np.array(errs)
+        if 'exp_grad' in predicted_points:
+            unfs, errs, eps = predicted_points['exp_grad']
+            unfs = np.array(unfs)
+            errs = np.array(errs)
+            plt.scatter(errs, unfs, c='green', marker='^', label='Fairlearn Exp-Grad')
+        if 'pareto' in predicted_points:
+            unfs_p, errs_p = list(predicted_points['pareto'].keys()), list(predicted_points['pareto'].values())
+            unfs_p = np.array(unfs_p)
+            errs_p = np.array(errs_p)
+            plt.scatter(errs_p, unfs_p, c='red', marker='s', label='MIFPO')
+        if 'fairret' in predicted_points:
+            points_fairret = predicted_points['fairret']
+            eps_fairret = []
+            unfs_fairret = []
+            errs_fairret = []
+            for key in points_fairret:
+                errs_fairret.append(points_fairret[key][0])
+                unfs_fairret.append(points_fairret[key][1])
+                eps_fairret.append(key)
+            unfs_fairret = np.array(unfs_fairret)
+            errs_fairret = np.array(errs_fairret)
+            plt.scatter(errs_fairret, unfs_fairret, c='blue', marker='*', label='FairRet')
+        if 'oxon' in predicted_points:
+            unfs_oxon, errs_oxon = predicted_points['oxon']
+            unfs_oxon = np.array(unfs_oxon)
+            errs_oxon = np.array(errs_oxon)
+            plt.scatter(errs_oxon, unfs_oxon, c='purple', marker='o', label='OxonFair')
         # Remove duplicates
         # unique_indices_exp = np.unique(errs, return_index=True)[1]
         # u_errs = errs[unique_indices_exp]
@@ -271,11 +295,11 @@ def plot_tradeoff(tradeoff, tradeoff_est, true_bayes, true_unf, predicted_points
         # X_fairret_ = np.linspace(errs_fairret.min(), errs_fairret.max(), 500)
         # Y_fairret_ = x_y_spline_fairret(X_fairret_)
         # plt.plot(X_fairret_, Y_fairret_, color='red', linestyle='--', label='FairRet (spline)')
-        plt.scatter(errs, unfs, c='green', marker='^', label='Fairlearn Exp-Grad')
         #plt.scatter(errs_fairret, unfs_fairret, c='red', marker='s', label='FairRet')
-    plt.xlabel('Bayes Error')
+    plt.xlabel('Error')
     plt.ylabel('Unfairness')
-    plt.ylim(-0.05, 0.15)
-    plt.xlim(0.075, 0.15)
+    if lims is not None:
+        plt.xlim(lims[0][0], lims[0][1])
+        plt.ylim(lims[1][0], lims[1][1])
     plt.title('Trade-off Curve')
     plt.legend()

@@ -4,7 +4,7 @@ Core FairParetoClassifier implementation.
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
-from aequitas.flow.utils import LabeledFrame
+#from aequitas.flow.utils import LabeledFrame
 
 from .calibration import train_calibrated_clf
 from .optimizer import EvelPertoFront
@@ -111,19 +111,23 @@ class FairParetoClassifier(BaseEstimator):
         data = data.drop(columns=[self.sensitive_column])
 
         # Create dataset object (using only train data, no splitting)
-        train_data = LabeledFrame(data, y_col='label', s_col='attr')
+        #train_data = LabeledFrame(data, y_col='label', s_col='attr')
 
         # Split data by sensitive attribute
-        X_0 = train_data.X[train_data.s == 0]
-        X_1 = train_data.X[train_data.s == 1]
-        y_0 = train_data.y[train_data.s == 0]
-        y_1 = train_data.y[train_data.s == 1]
+        # X_0 = train_data.X[train_data.s == 0]
+        # X_1 = train_data.X[train_data.s == 1]
+        # y_0 = train_data.y[train_data.s == 0]
+        # y_1 = train_data.y[train_data.s == 1]
+        X_0 = data[data['attr'] == 0].drop(columns=['label', 'attr']).values
+        y_0 = data[data['attr'] == 0]['label'].values
+        X_1 = data[data['attr'] == 1].drop(columns=['label', 'attr']).values
+        y_1 = data[data['attr'] == 1]['label'].values
 
         if self.verbose:
             print(f"  - Group 0 size: {len(X_0)}, Group 1 size: {len(X_1)}")
 
         # Train or use provided calibrated classifiers
-        if calibrated_classifier is None:
+        if calibrated_classifier is None and self.soft is None:
             if self.verbose:
                 print("  - Training calibrated classifiers...")
             clf_0 = train_calibrated_clf(X_0, y_0)
